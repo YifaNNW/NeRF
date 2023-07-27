@@ -100,18 +100,30 @@ focal = data['focal']
 H, W = images.shape[1:3]
 print(images.shape, poses.shape, focal)
 
+from datetime import datetime
+current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
 testimg, testpose = images[101], poses[101]
 images = images[:100,...,:3]
 poses = poses[:100]
 
-# from mpl_toolkits.axes_grid1 import ImageGrid
-# fig = plt.figure(figsize=(16, 16))
-# grid = ImageGrid(fig, 111, nrows_ncols=(4, 4), axes_pad=0.1)
-# random_images = images[np.random.choice(np.arange(images.shape[0]), 16)]
-# for ax, image in zip(grid, random_images):
-#     ax.imshow(image)
-# plt.title("Sample Images from Tiny-NeRF Data")
-# plt.show()
+from mpl_toolkits.axes_grid1 import ImageGrid
+fig = plt.figure(figsize=(16, 16))
+grid = ImageGrid(fig, 111, nrows_ncols=(4, 4), axes_pad=0.1)
+random_images = images[np.random.choice(np.arange(images.shape[0]), 16)]
+for ax, image in zip(grid, random_images):
+    ax.imshow(image)
+plt.title("Sample Images from Tiny-NeRF Data")
+
+image_data = 'image_data'
+
+if not os.path.exists(image_data):
+    os.makedirs(image_data)
+
+output_path = os.path.join(image_data, f'{current_time}-image_data.png')
+plt.savefig(output_path)
+
+
 
 
 model = init_model()
@@ -121,6 +133,7 @@ optimizer = tf.keras.optimizers.Adam(5e-4)
 N_samples = 64
 N_iters = 1000
 psnrs = []
+timeList = []
 iternums = []
 i_plot = 25
 
@@ -140,6 +153,9 @@ for i in range(N_iters+1):
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
     
     if i%i_plot==0:
+        time_per_iter = (time.time() - t) / i_plot
+        timeList.append(time_per_iter)
+        print(i, time_per_iter, 'secs per iter')
         print(i, (time.time() - t) / i_plot, 'secs per iter')
         t = time.time()
         
@@ -154,14 +170,50 @@ for i in range(N_iters+1):
         
         plt.figure(figsize=(10,4))
         plt.subplot(121)
+        plt.imshow(depth)
+        plt.title(f'Depth image, Iteration: {i}')
+        depth_image = 'depth_image'
+        if not os.path.exists(depth_image):
+            os.makedirs(depth_image)
+        output_path = os.path.join(depth_image, f'{i}-depth_image.png')
+        plt.savefig(output_path)
+        plt.close()
+
+        plt.figure(figsize=(10,4))
+        plt.subplot(121)
         plt.imshow(rgb)
-        plt.title(f'Iteration: {i}')
+        plt.title(f'RGB image, Iteration: {i}')
+        rgb_image = 'rgb_image'
+        if not os.path.exists(rgb_image):
+            os.makedirs(rgb_image)
+        output_path = os.path.join(rgb_image, f'{i}-rgb_image.png')
+        plt.savefig(output_path)
+        plt.close()
+
+        plt.figure(figsize=(10,4))
         plt.subplot(122)
         plt.plot(iternums, psnrs)
         plt.title('PSNR')
-        plt.show()
+        psnr_image = 'psnr_image'
+        if not os.path.exists(psnr_image):
+            os.makedirs(psnr_image)
+        output_path = os.path.join(psnr_image, f'{i}-psnr_image.png')
+        plt.savefig(output_path)
+        plt.close()
+    
+    # Storage of PSNR data and runtime
+iteration_number = list(range(0, 1000, 50))
+file_path = 'PSNR_Data.txt'
 
-print('Done')
+if not os.path.exists(file_path):
+    with open(file_path, 'w') as file:
+        file.write("Iteration Number\tTime per iter\tPSNR\n")
+
+with open(file_path, 'a') as file:
+    for col, val_a, val_b in zip(iteration_number, timeList, psnrs):
+        file.write(f"{col}\t{val_a}\t{val_b}\n")
+
+print(f"Data written to {file_path}")
 
 
 
@@ -230,6 +282,11 @@ names = [
 
 
 from tqdm.notebook import tqdm
+
+output_folder = '3D Video'
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
+
 frames = []
 for th in tqdm(np.linspace(0., 360., 120, endpoint=False)):
     c2w = pose_spherical(th, -30., 4.)
@@ -238,17 +295,20 @@ for th in tqdm(np.linspace(0., 360., 120, endpoint=False)):
     frames.append((255*np.clip(rgb,0,1)).astype(np.uint8))
 
 import imageio
-f = 'video.mp4'
-imageio.mimwrite(f, frames, fps=30, quality=7)
+
+video_path = os.path.join(output_folder, 'depthVideo.mp4')
+# f = 'video.mp4'
+imageio.mimwrite(video_path, frames, fps=30, quality=7)
 
 
 
-from IPython.display import HTML
-from base64 import b64encode
-mp4 = open('video.mp4','rb').read()
-data_url = "data:video/mp4;base64," + b64encode(mp4).decode()
-HTML("""
-<video width=400 controls autoplay loop>
-      <source src="%s" type="video/mp4">
-</video>
-""" % data_url)
+
+# from IPython.display import HTML
+# from base64 import b64encode
+# mp4 = open('video.mp4','rb').read()
+# data_url = "data:video/mp4;base64," + b64encode(mp4).decode()
+# HTML("""
+# <video width=400 controls autoplay loop>
+#       <source src="%s" type="video/mp4">
+# </video>
+# """ % data_url)
