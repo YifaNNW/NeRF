@@ -5,9 +5,7 @@ tf.compat.v1.enable_eager_execution()
 from tqdm.notebook import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
-
-
-
+from PIL import Image
 
 
 def posenc(x):
@@ -62,10 +60,11 @@ def render_rays(network_fn, rays_o, rays_d, near, far, N_samples, rand=False):
     def batchify(fn, chunk=1024*32):
         return lambda inputs : tf.concat([fn(inputs[i:i+chunk]) for i in range(0, inputs.shape[0], chunk)], 0)
     
-    # Compute 3D query points
-    z_vals = tf.linspace(near, far, N_samples) 
+    z_vals = tf.linspace(near, far, N_samples)
     if rand:
-      z_vals += tf.random.uniform(list(rays_o.shape[:-1]) + [N_samples]) * (far-near)/N_samples
+        z_vals += tf.random.uniform(list(rays_o.shape[:-1]) + [N_samples]) * (far - near) / N_samples
+    z_vals = tf.cast(z_vals, dtype=tf.float64)
+    rays_d = tf.cast(rays_d, dtype=tf.float64)
     pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
     
     # Run network
@@ -92,20 +91,34 @@ def render_rays(network_fn, rays_o, rays_d, near, far, N_samples, rand=False):
 
 
 
-data = np.load('tiny_nerf_data.npz')
-images = data['images']
-poses = data['poses']
-focal = data['focal']
-# H = Height, W = Width
+folder_path = './Dataset/egypt_picture_data'
+
+file_names = os.listdir(folder_path)
+
+images_data = []
+for file_name in file_names:
+    file_path = os.path.join(folder_path, file_name)   
+    img = Image.open(file_path)
+    img = img.resize((1800, 1800))   
+    img_array = np.array(img)  
+    if len(img_array.shape) == 3 and img_array.shape[2] == 3:
+        images_data.append(img_array)
+
+images = np.array(images_data)
+
+poses_data = np.load('./Dataset/camera_positions.npz')
+poses = poses_data['arr1']
+focal = 0.8
+
 H, W = images.shape[1:3]
 print(images.shape, poses.shape, focal)
 
+testimg, testpose = images[99], poses[99]
+images = images[:90,...,:3]
+poses = poses[:90]
+
 from datetime import datetime
 current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-testimg, testpose = images[101], poses[101]
-images = images[:100,...,:3]
-poses = poses[:100]
 
 from mpl_toolkits.axes_grid1 import ImageGrid
 fig = plt.figure(figsize=(16, 16))

@@ -1,0 +1,8 @@
+#  
+#  Wavefront MTL
+#  
+#  
+
+newmtl g0
+map_Kd baked_mesh_tex0.png
+#  
