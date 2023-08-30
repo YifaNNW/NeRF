@@ -1,4 +1,4 @@
-# NeRF
+# SDFNeRF
 
 ## This project combines SDF values with NeRF algorithm called SDFNeRF. This is its code.
 
