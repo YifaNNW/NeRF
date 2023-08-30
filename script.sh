@@ -15,13 +15,7 @@ cd ./NeRF
 pwd
 . ~/initConda.sh
 conda activate tf-gpu
-# # module add cuda-11.8.0-gcc-11.3.0-g3u
-# module add libs/cudnn/11.4-cuda-11.1
 
-# module add libs/cuda/12.0.0-gcc-9.1.0
-# module add libs/cuda/11.1.0
-# module add languages/anaconda3/2022.12-3.9.13-torch-cuda-11.7
-module add languages/anaconda3/2022.11-3.9.13-tensorflow-2.11
-# module add GCCcore/7.2.0
-# run the application
+# module add languages/anaconda3/2022.11-3.9.13-tensorflow-2.11
+
 srun python Tiny-NeRF.py

@@ -49,7 +49,7 @@ def get_rays(H, W, focal, c2w):
     dirs = tf.stack([transformed_i, transformed_j, k], -1)
     # Compute Origins and Directions for each ray
     rays_d = tf.reduce_sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)
-    rays_o = tf.broadcast_to(c2w[:3,-1], tf.shape(rays_d))
+    rays_o = tf.cast(tf.broadcast_to(c2w[:3,-1], tf.shape(rays_d)), dtype=tf.float32)
     return rays_o, rays_d
 
 
@@ -63,8 +63,6 @@ def render_rays(network_fn, rays_o, rays_d, near, far, N_samples, rand=False):
     z_vals = tf.linspace(near, far, N_samples)
     if rand:
         z_vals += tf.random.uniform(list(rays_o.shape[:-1]) + [N_samples]) * (far - near) / N_samples
-    z_vals = tf.cast(z_vals, dtype=tf.float64)
-    rays_d = tf.cast(rays_d, dtype=tf.float64)
     pts = rays_o[...,None,:] + rays_d[...,None,:] * z_vals[...,:,None]
     
     # Run network
@@ -99,7 +97,7 @@ images_data = []
 for file_name in file_names:
     file_path = os.path.join(folder_path, file_name)   
     img = Image.open(file_path)
-    img = img.resize((1800, 1800))   
+    img = img.resize((200, 200))   
     img_array = np.array(img)  
     if len(img_array.shape) == 3 and img_array.shape[2] == 3:
         images_data.append(img_array)
@@ -160,7 +158,7 @@ for i in range(N_iters+1):
     pose = poses[img_i]
     rays_o, rays_d = get_rays(H, W, focal, pose)
     with tf.GradientTape() as tape:
-        rgb, depth, acc = render_rays(model, rays_o, rays_d, near=2., far=6., N_samples=N_samples, rand=True)
+        rgb, depth, acc = render_rays(model, rays_o, rays_d, near=0.1, far=6., N_samples=N_samples, rand=True)
         loss = tf.reduce_mean(tf.square(rgb - target))
     gradients = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
@@ -174,7 +172,7 @@ for i in range(N_iters+1):
         
         # Render the holdout view for logging
         rays_o, rays_d = get_rays(H, W, focal, testpose)
-        rgb, depth, acc = render_rays(model, rays_o, rays_d, near=2., far=6., N_samples=N_samples)
+        rgb, depth, acc = render_rays(model, rays_o, rays_d, near=0.1, far=6., N_samples=N_samples)
         loss = tf.reduce_mean(tf.square(rgb - testimg))
         psnr = -10. * tf.math.log(loss) / tf.math.log(10.)
 
